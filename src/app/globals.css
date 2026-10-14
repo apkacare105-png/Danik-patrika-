@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --brand-rgb: 226 35 26;
+  --ink-rgb: 17 24 39;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font-body), system-ui, sans-serif;
+  color: rgb(var(--ink-rgb));
+  background: #f6f6f7;
+  line-height: 1.6;
+}
+
+h1, h2, h3, .font-display { font-family: var(--font-display), serif; }
+
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee { animation: none !important; }
+  html { scroll-behavior: auto; }
+}
+
+/* लेख की टाइपोग्राफ़ी */
+.article-body p { margin: 0 0 1.1em; line-height: 1.95; }
+.article-body h2 { margin: 1.6em 0 .6em; font-size: 1.35em; font-weight: 700; border-left: 4px solid rgb(var(--brand-rgb)); padding-left: .6em; }
+.article-body blockquote { margin: 1.4em 0; padding: .8em 1.2em; background: #fff5f4; border-left: 4px solid rgb(var(--brand-rgb)); font-family: var(--font-display), serif; font-size: 1.15em; border-radius: 0 .5rem .5rem 0; }
+.article-body ul { margin: 0 0 1.2em 1.4em; list-style: disc; }
+.article-body li { margin-bottom: .4em; line-height: 1.8; }
+
+
+/* Dainik Patrika editorial polish */
+::selection { background: rgb(var(--brand-rgb) / .16); }
+a { text-underline-offset: 3px; }
+.news-surface { background: #fff; border: 1px solid #e8e8e8; box-shadow: 0 1px 2px rgb(0 0 0 / .03); }
+.editorial-divider { border-top: 3px solid rgb(var(--brand-rgb)); }
+@media (max-width: 640px) {
+  body { background: #f8f8f8; }
+  .article-body { font-size: 1.06rem; }
+}
