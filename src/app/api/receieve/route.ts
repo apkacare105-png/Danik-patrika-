@@ -1,6 +1,8 @@
-
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import {
+  createClient,
+  type SupabaseClient,
+} from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -132,7 +134,7 @@ function categorySlug(value: unknown) {
 async function saveArticle(
   payload: Record<string, unknown>,
   originalPayload: unknown,
-  supabase: ReturnType<typeof createClient>
+  supabase: SupabaseClient
 ) {
   const title = firstString(
     payload.title_hi,
@@ -206,36 +208,44 @@ async function saveArticle(
 
   let categoryId: string | null = null;
 
+  // Find requested category.
   if (slug) {
-    const { data, error } = await supabase
+    const categoryResult = await supabase
       .from("categories")
       .select("id")
       .eq("slug", slug)
       .maybeSingle();
 
-    if (error) {
+    if (categoryResult.error) {
       throw new Error(
-        `Category lookup failed: ${error.message}`
+        `Category lookup failed: ${categoryResult.error.message}`
       );
     }
 
-    categoryId = data?.id ?? null;
+    const categoryData =
+      categoryResult.data as { id: string } | null;
+
+    categoryId = categoryData?.id ?? null;
   }
 
+  // Fall back to "desh" if no matching category exists.
   if (!categoryId) {
-    const { data, error } = await supabase
+    const categoryResult = await supabase
       .from("categories")
       .select("id")
       .eq("slug", "desh")
       .maybeSingle();
 
-    if (error) {
+    if (categoryResult.error) {
       throw new Error(
-        `Default category lookup failed: ${error.message}`
+        `Default category lookup failed: ${categoryResult.error.message}`
       );
     }
 
-    categoryId = data?.id ?? null;
+    const categoryData =
+      categoryResult.data as { id: string } | null;
+
+    categoryId = categoryData?.id ?? null;
   }
 
   const articleSlug =
@@ -298,7 +308,10 @@ async function saveArticle(
     throw new Error(result.error.message);
   }
 
-  return result.data;
+  return result.data as {
+    id: string;
+    slug: string;
+  };
 }
 
 export async function POST(request: Request) {
@@ -417,4 +430,5 @@ export async function GET() {
     endpoint: "Dainik Patrika news receiver",
     method: "POST",
   });
-}
+} 
+//it is happening for the third time man
