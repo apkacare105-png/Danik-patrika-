@@ -1,3 +1,4 @@
+```ts
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
@@ -9,7 +10,9 @@ const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const ingestionSecret = process.env.NEWS_INGESTION_SECRET;
 
 function isAuthorized(request: Request) {
-  if (!ingestionSecret) return false;
+  if (!ingestionSecret) {
+    return false;
+  }
 
   const apiKey = request.headers
     .get("x-news-api-key")
@@ -25,7 +28,10 @@ function isAuthorized(request: Request) {
     ? authorization.slice(7).trim()
     : "";
 
-  return apiKey === ingestionSecret || bearer === ingestionSecret;
+  return (
+    apiKey === ingestionSecret ||
+    bearer === ingestionSecret
+  );
 }
 
 function firstString(...values: unknown[]) {
@@ -50,7 +56,10 @@ function slugify(value: string) {
 }
 
 function parseDate(value: unknown) {
-  if (typeof value !== "string" && typeof value !== "number") {
+  if (
+    typeof value !== "string" &&
+    typeof value !== "number"
+  ) {
     return new Date().toISOString();
   }
 
@@ -93,7 +102,6 @@ function categorySlug(value: unknown) {
     finance: "business",
     economy: "business",
 
-    technology: "technology",
     technology: "technology",
     tech: "technology",
     ai: "technology",
@@ -199,21 +207,33 @@ async function saveArticle(
   let categoryId: string | null = null;
 
   if (slug) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("categories")
       .select("id")
       .eq("slug", slug)
       .maybeSingle();
 
+    if (error) {
+      throw new Error(
+        `Category lookup failed: ${error.message}`
+      );
+    }
+
     categoryId = data?.id ?? null;
   }
 
   if (!categoryId) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("categories")
       .select("id")
       .eq("slug", "desh")
       .maybeSingle();
+
+    if (error) {
+      throw new Error(
+        `Default category lookup failed: ${error.message}`
+      );
+    }
 
     categoryId = data?.id ?? null;
   }
@@ -397,5 +417,5 @@ export async function GET() {
     endpoint: "Dainik Patrika news receiver",
     method: "POST",
   });
-} 
- 
+}
+```
