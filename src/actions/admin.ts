@@ -73,3 +73,4 @@ export async function deletePortfolioProject(id: string) {
   return run('प्रोजेक्ट हटाया गया।', 'प्रोजेक्ट हटाया गया।',
     (sb) => sb.from('portfolio_projects').delete().eq('id', id), ['/hamare-karya', '/admin/portfolio']);
 }
+

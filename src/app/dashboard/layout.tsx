@@ -13,4 +13,5 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <div className="mx-auto max-w-[1500px] p-3 sm:p-4">{children}</div>
     </div>
   );
-}
+} 
+// this is a layout file for the dashboard, it wraps all the dashboard pages with a top bar and some styling.
