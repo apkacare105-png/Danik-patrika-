@@ -430,5 +430,5 @@ export async function GET() {
     endpoint: "Dainik Patrika news receiver",
     method: "POST",
   });
-} 
-//it is happening for the third time man
+}  
+// ending yahi h 

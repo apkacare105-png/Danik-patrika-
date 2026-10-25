@@ -17,3 +17,4 @@ archive.glob('**/*', {
   ignore: ['node_modules/**', '.next/**', '.env', '.env.local', '*.zip', '*.tsbuildinfo', 'next-env.d.ts', '.git/**'],
 }, { prefix: basename(root) });
 await archive.finalize();
+// c
