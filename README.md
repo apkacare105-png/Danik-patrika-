@@ -13,7 +13,7 @@ npm run dev        # http://localhost:3000
 
 ## असली Supabase से जोड़ें
 
-1. Supabase में नया प्रोजेक्ट बनाएँ → **SQL Editor** में `supabase/migrations/001_daily_insights.sql` पूरा चलाएँ (स्कीमा, RLS, ट्रिगर, स्टोरेज और डेमो डेटा)।
+1. Supabase में नया प्रोजेक्ट बनाएँ → **SQL Editor** में `supabase/migrations` की SQL फ़ाइलें क्रम से चलाएँ (स्कीमा, RLS, ट्रिगर, स्टोरेज, डेमो डेटा और श्रेणी अपडेट)।
 2. `.env.example` को `.env.local` में कॉपी करके `NEXT_PUBLIC_SUPABASE_URL` और `NEXT_PUBLIC_SUPABASE_ANON_KEY` भरें।
 3. साइट पर `/login` से साइन-अप करें, फिर SQL Editor में पहला सुपर एडमिन बनाएँ:
    ```sql

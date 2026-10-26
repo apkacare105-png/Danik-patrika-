@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronDown, Menu, Search, UserRound } from 'lucide-react';
+import { ChevronDown, Eye, Menu, Search, UserRound } from 'lucide-react';
 import type { Category, NavLink } from '@/lib/types';
 import { Sheet, SheetClose, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { SearchModal } from './search-modal';
@@ -12,11 +12,12 @@ type MenuStory = { title_hi: string; slug: string; category_slug: string; featur
 
 const dateFmt = new Intl.DateTimeFormat('hi-IN', { timeZone: 'Asia/Kolkata', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 const timeFmt = new Intl.DateTimeFormat('hi-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+const viewsFmt = new Intl.NumberFormat('hi-IN');
 
 export function HeaderClient({
-  siteName, logoUrl, categories, menuStories, extraNav,
+  siteName, logoUrl, categories, menuStories, extraNav, totalDemoViews,
 }: {
-  siteName: string; logoUrl: string | null; categories: Category[]; menuStories: Record<string, MenuStory[]>; extraNav: NavLink[];
+  siteName: string; logoUrl: string | null; categories: Category[]; menuStories: Record<string, MenuStory[]>; extraNav: NavLink[]; totalDemoViews: number;
 }) {
   const [open, setOpen] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -50,6 +51,10 @@ export function HeaderClient({
           <div className="flex items-center gap-3" suppressHydrationWarning>
             <span>{now ? dateFmt.format(now) : ' '}</span>
             <span className="hidden font-semibold tabular-nums text-brand sm:inline">{now ? timeFmt.format(now) : ''}</span>
+            <span className="hidden items-center gap-1 font-semibold text-brand sm:inline-flex" title="लेखों के कुल व्यूज़">
+              <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+              कुल व्यूज़: {viewsFmt.format(totalDemoViews)}
+            </span>
           </div>
           <nav className="flex items-center gap-4">
             {extraNav.map((n) => (

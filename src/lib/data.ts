@@ -39,6 +39,7 @@ export async function getCategories(): Promise<Category[]> {
     .from('categories').select('*, sub_categories(*)').eq('is_active', true).order('order_index');
   return (data ?? []).map((c: any) => ({
     ...c,
+    name_hi: c.slug === 'auto' || c.slug === 'naukri' ? 'नौकरी' : c.name_hi,
     sub_categories: (c.sub_categories ?? []).filter((s: any) => s.is_active).sort((a: any, b: any) => a.order_index - b.order_index),
   }));
 }

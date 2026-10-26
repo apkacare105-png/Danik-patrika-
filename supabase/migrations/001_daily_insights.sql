@@ -359,7 +359,7 @@ create policy "branding_super_write" on storage.objects for all to authenticated
 insert into public.categories (name_hi, slug, order_index) values
   ('देश', 'desh', 1), ('दुनिया', 'duniya', 2), ('राज्य', 'rajya', 3), ('खेल', 'khel', 4),
   ('मनोरंजन', 'manoranjan', 5), ('बिजनेस', 'business', 6), ('टेक्नोलॉजी', 'technology', 7),
-  ('ऑटो', 'auto', 8), ('लाइफस्टाइल', 'lifestyle', 9), ('धर्म', 'dharm', 10)
+  ('नौकरी', 'naukri', 8), ('लाइफस्टाइल', 'lifestyle', 9), ('धर्म', 'dharm', 10)
 on conflict (slug) do nothing;
 
 insert into public.sub_categories (category_id, name_hi, slug, order_index)
@@ -461,6 +461,7 @@ on conflict (slug) do nothing;
 -- Ordinary registered users can create blog posts. Admin/staff approval is required.
 -- Blogs reuse the articles table so the existing editor, image storage and moderation flow stay consistent.
 -- =====================================================================
+
 create index if not exists articles_blog_status_idx on public.articles (is_blog, status, published_at desc);
 
 -- Public readers can view approved blogs.

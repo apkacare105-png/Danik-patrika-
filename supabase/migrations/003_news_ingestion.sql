@@ -10,4 +10,4 @@ create unique index if not exists articles_source_url_unique
 
 create unique index if not exists articles_external_id_unique
   on public.articles (external_id) 
-  where external_id is not null;
+  where external_id is not null; 

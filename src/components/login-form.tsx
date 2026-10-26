@@ -5,15 +5,19 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
+import { getPendingAvatar, removePendingAvatar, savePendingAvatar } from '@/lib/pending-avatar';
 import { Button } from '@/components/ui/button';
 import { Input, Label } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
+const AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
 export function LoginForm({ demo, next, forbidden }: { demo: boolean; next: string; forbidden: boolean }) {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [avatar, setAvatar] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
 
   if (demo) {
@@ -32,10 +36,31 @@ export function LoginForm({ demo, next, forbidden }: { demo: boolean; next: stri
   const login = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
-    const { error } = await createClient().auth.signInWithPassword({ email, password });
+    const client = createClient();
+    const { data, error } = await client.auth.signInWithPassword({ email, password });
     setBusy(false);
     if (error) return toast.error('ईमेल या पासवर्ड ग़लत है।');
-    toast.success('लॉगिन सफल रहा!');
+    try {
+      const pendingAvatar = await getPendingAvatar(email);
+      if (pendingAvatar && data.user) {
+        const extension = pendingAvatar.type.split('/')[1];
+        const path = `${data.user.id}/${crypto.randomUUID()}.${extension}`;
+        const { error: uploadError } = await client.storage.from('profile-avatars').upload(path, pendingAvatar, {
+          cacheControl: '3600',
+          contentType: pendingAvatar.type,
+        });
+        if (uploadError) throw uploadError;
+        const avatarUrl = client.storage.from('profile-avatars').getPublicUrl(path).data.publicUrl;
+        const { error: profileError } = await client.from('profiles').update({ avatar_url: avatarUrl }).eq('id', data.user.id);
+        if (profileError) throw profileError;
+        const { error: metadataError } = await client.auth.updateUser({ data: { avatar_url: avatarUrl } });
+        if (metadataError) throw metadataError;
+        await removePendingAvatar(email);
+      }
+      toast.success('लॉगिन सफल रहा!');
+    } catch {
+      toast.error('लॉगिन सफल रहा, लेकिन प्रोफ़ाइल तस्वीर अपलोड नहीं हो सकी। अगली बार लॉगिन करके फिर कोशिश करें।');
+    }
     router.push(next);
     router.refresh();
   };
@@ -43,10 +68,61 @@ export function LoginForm({ demo, next, forbidden }: { demo: boolean; next: stri
   const signup = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
-    const { error } = await createClient().auth.signUp({ email, password, options: { data: { display_name: name } } });
-    setBusy(false);
-    if (error) return toast.error(error.message);
-    toast.success('खाता बन गया! अगर ईमेल पुष्टि ज़रूरी है तो अपना इनबॉक्स देखें।');
+    let accountCreated = false;
+    try {
+      if (avatar) await savePendingAvatar(email, avatar);
+      const client = createClient();
+      const { data, error } = await client.auth.signUp({
+        email,
+        password,
+        options: { data: { display_name: name } },
+      });
+      if (error) {
+        if (avatar) await removePendingAvatar(email);
+        return toast.error(error.message);
+      }
+      accountCreated = true;
+      if (avatar && data.session && data.user) {
+        const extension = avatar.type.split('/')[1];
+        const path = `${data.user.id}/${crypto.randomUUID()}.${extension}`;
+        const { error: uploadError } = await client.storage.from('profile-avatars').upload(path, avatar, {
+          cacheControl: '3600',
+          contentType: avatar.type,
+        });
+        if (uploadError) throw uploadError;
+        const avatarUrl = client.storage.from('profile-avatars').getPublicUrl(path).data.publicUrl;
+        const { error: profileError } = await client.from('profiles').update({ avatar_url: avatarUrl }).eq('id', data.user.id);
+        if (profileError) throw profileError;
+        const { error: metadataError } = await client.auth.updateUser({ data: { avatar_url: avatarUrl } });
+        if (metadataError) throw metadataError;
+        await removePendingAvatar(email);
+      }
+      toast.success(avatar && !data.session
+        ? 'खाता बन गया! ईमेल पुष्टि करने और पहली बार लॉगिन करने के बाद प्रोफ़ाइल तस्वीर अपलोड होगी।'
+        : 'खाता बन गया! अगर ईमेल पुष्टि ज़रूरी है तो अपना इनबॉक्स देखें।');
+    } catch {
+      toast.error(accountCreated
+        ? 'खाता बन गया, लेकिन प्रोफ़ाइल तस्वीर अपलोड नहीं हो सकी। लॉगिन के बाद फिर कोशिश करें।'
+        : 'खाता नहीं बन सका या तस्वीर तैयार नहीं हो सकी। कृपया दोबारा प्रयास करें।');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const selectAvatar = (file?: File) => {
+    if (!file) {
+      setAvatar(null);
+      return;
+    }
+    if (!AVATAR_TYPES.includes(file.type)) {
+      setAvatar(null);
+      return toast.error('JPG, PNG, WebP या GIF तस्वीर चुनें।');
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setAvatar(null);
+      return toast.error('तस्वीर 5 MB से छोटी होनी चाहिए।');
+    }
+    setAvatar(file);
   };
 
   return (
@@ -67,6 +143,12 @@ export function LoginForm({ demo, next, forbidden }: { demo: boolean; next: stri
             <div><Label htmlFor="n2">आपका नाम</Label><Input id="n2" required value={name} onChange={(e) => setName(e.target.value)} /></div>
             <div><Label htmlFor="e2">ईमेल</Label><Input id="e2" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></div>
             <div><Label htmlFor="p2">पासवर्ड (कम से कम 6 अक्षर)</Label><Input id="p2" type="password" minLength={6} required value={password} onChange={(e) => setPassword(e.target.value)} /></div>
+            <div>
+              <Label htmlFor="avatar">प्रोफ़ाइल तस्वीर (वैकल्पिक)</Label>
+              <Input id="avatar" type="file" accept="image/jpeg,image/png,image/webp,image/gif" disabled={busy} onChange={(e) => selectAvatar(e.target.files?.[0])} />
+              <p className="mt-1 text-xs text-neutral-500">JPG, PNG, WebP या GIF · अधिकतम 5 MB</p>
+              {avatar && <p className="mt-1 truncate text-xs text-neutral-600">{avatar.name}</p>}
+            </div>
             <Button className="w-full" disabled={busy}>{busy ? 'कृपया प्रतीक्षा करें…' : 'खाता बनाएँ'}</Button>
             <p className="text-xs text-neutral-500">नए खाते की भूमिका “पाठक” होती है; एडमिन इसे “लेखक” बना सकते हैं।</p>
           </form>

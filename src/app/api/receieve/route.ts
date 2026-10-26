@@ -108,8 +108,12 @@ function categorySlug(value: unknown) {
     tech: "technology",
     ai: "technology",
 
-    auto: "auto",
-    automobile: "auto",
+    jobs: "naukri",
+    job: "naukri",
+    employment: "naukri",
+    careers: "naukri",
+    career: "naukri",
+    नौकरी: "naukri",
 
     health: "health",
     healthcare: "health",

@@ -13,7 +13,7 @@ Never expose `GNEWS_API_KEY` through a `NEXT_PUBLIC_*` variable.
 
 ## 2. Supabase
 
-Run `supabase/migrations/001_daily_insights.sql` in the Supabase SQL editor/database migration flow. The migration includes the `articles.is_blog` field and RLS policies required for community blogs.
+For a new project, run the SQL files in `supabase/migrations` in numerical order. For an existing project, run any migrations not yet applied; `003_rename_auto_category_to_jobs.sql` replaces the Auto category with Jobs.
 
 ## 3. Community blogs
 
