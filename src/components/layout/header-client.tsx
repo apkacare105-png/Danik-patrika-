@@ -12,12 +12,11 @@ type MenuStory = { title_hi: string; slug: string; category_slug: string; featur
 
 const dateFmt = new Intl.DateTimeFormat('hi-IN', { timeZone: 'Asia/Kolkata', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 const timeFmt = new Intl.DateTimeFormat('hi-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
-const viewsFmt = new Intl.NumberFormat('hi-IN');
 
 export function HeaderClient({
-  siteName, logoUrl, categories, menuStories, extraNav, totalDemoViews,
+  siteName, logoUrl, categories, menuStories, extraNav,
 }: {
-  siteName: string; logoUrl: string | null; categories: Category[]; menuStories: Record<string, MenuStory[]>; extraNav: NavLink[]; totalDemoViews: number;
+  siteName: string; logoUrl: string | null; categories: Category[]; menuStories: Record<string, MenuStory[]>; extraNav: NavLink[];
 }) {
   const [open, setOpen] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -51,9 +50,9 @@ export function HeaderClient({
           <div className="flex items-center gap-3" suppressHydrationWarning>
             <span>{now ? dateFmt.format(now) : ' '}</span>
             <span className="hidden font-semibold tabular-nums text-brand sm:inline">{now ? timeFmt.format(now) : ''}</span>
-            <span className="hidden items-center gap-1 font-semibold text-brand sm:inline-flex" title="लेखों के कुल व्यूज़">
+            <span className="hidden items-center gap-1 font-semibold text-brand sm:inline-flex" title="Over 1 million article views">
               <Eye className="h-3.5 w-3.5" aria-hidden="true" />
-              कुल व्यूज़: {viewsFmt.format(totalDemoViews)}
+              1 million+ views
             </span>
           </div>
           <nav className="flex items-center gap-4">

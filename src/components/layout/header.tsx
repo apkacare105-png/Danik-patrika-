@@ -2,7 +2,6 @@ import { getArticles, getCategories, getSiteSettings } from '@/lib/data';
 import { AdSlot } from '../ad-slot';
 import { HeaderClient } from './header-client';
 import { BreakingTicker } from './breaking-ticker';
-import { MOCK_TOTAL_VIEWS } from '@/lib/mock-data';
 
 export async function Header() {
   const [categories, settings, latest] = await Promise.all([getCategories(), getSiteSettings(), getArticles({ limit: 30 })]);
@@ -24,7 +23,6 @@ export async function Header() {
         categories={categories}
         menuStories={menuStories}
         extraNav={settings.header_nav}
-        totalDemoViews={MOCK_TOTAL_VIEWS}
       />
       <BreakingTicker items={latest.slice(0, 8).map((a) => ({ title: a.title_hi, href: `/news/${a.category_slug}/${a.slug}` }))} />
       <div className="mx-auto mt-4 max-w-7xl px-3">
