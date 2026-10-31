@@ -3,6 +3,12 @@ import {
   createClient,
   type SupabaseClient,
 } from "@supabase/supabase-js";
+import {
+  createHash,
+  createHmac,
+  randomBytes,
+  timingSafeEqual,
+} from "node:crypto";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -138,7 +144,8 @@ function categorySlug(value: unknown) {
 async function saveArticle(
   payload: Record<string, unknown>,
   originalPayload: unknown,
-  supabase: SupabaseClient
+  supabase: SupabaseClient,
+  stableSlug?: string
 ) {
   const title = firstString(
     payload.title_hi,
@@ -253,7 +260,7 @@ async function saveArticle(
   }
 
   const articleSlug =
-    `${slugify(title)}-${Date.now().toString(36)}`;
+    stableSlug ?? `${slugify(title)}-${Date.now().toString(36)}`;
 
   const contentBlocks = {
     type: "doc",
@@ -318,8 +325,378 @@ async function saveArticle(
   };
 }
 
+type GetViralConfig = {
+  site: string;
+  endpoint: URL;
+  platform: URL;
+  key: string;
+  secret: string;
+};
+
+function getGetViralConfig(): GetViralConfig | null {
+  const siteValue = process.env.GV_SITE;
+  const endpointValue = process.env.GV_ENDPOINT;
+  const platformValue = process.env.GV_PLATFORM;
+  const key = process.env.GV_KEY;
+  const secret = process.env.GV_SECRET;
+
+  if (!siteValue || !endpointValue || !platformValue || !key || !secret) {
+    return null;
+  }
+
+  try {
+    const siteUrl = new URL(siteValue);
+    const endpoint = new URL(endpointValue);
+    const platform = new URL(platformValue);
+    const site = siteUrl.origin;
+
+    if (
+      siteUrl.protocol !== "https:" ||
+      siteUrl.pathname !== "/" ||
+      siteUrl.search ||
+      siteUrl.hash ||
+      endpoint.protocol !== "https:" ||
+      endpoint.origin !== site ||
+      endpoint.search ||
+      endpoint.hash ||
+      platform.protocol !== "https:"
+    ) {
+      return null;
+    }
+
+    return { site, endpoint, platform, key, secret };
+  } catch {
+    return null;
+  }
+}
+
+function getViralSignature(
+  secret: string,
+  method: string,
+  target: string,
+  key: string,
+  site: string,
+  timestamp: string,
+  nonce: string,
+  body: Uint8Array
+) {
+  const bodyHash = createHash("sha256").update(body).digest("hex");
+
+  return createHmac("sha256", secret)
+    .update(
+      ["GV1", method, target, key, site, timestamp, nonce, bodyHash].join("\n")
+    )
+    .digest("hex");
+}
+
+class RequestTooLargeError extends Error {}
+
+async function readRawBody(request: Request) {
+  const maximumSize = 15 * 1024 * 1024;
+  const contentLength = request.headers.get("content-length");
+
+  if (contentLength && Number(contentLength) > maximumSize) {
+    throw new RequestTooLargeError();
+  }
+
+  if (!request.body) {
+    return Buffer.alloc(0);
+  }
+
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > maximumSize) {
+        await reader.cancel();
+        throw new RequestTooLargeError();
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  return Buffer.concat(chunks, size);
+}
+
+async function claimGetViralNonce(
+  supabase: SupabaseClient,
+  key: string,
+  nonce: string
+) {
+  const expiredBefore = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+  const cleanup = await supabase
+    .from("getviral_delivery_nonces")
+    .delete()
+    .lt("created_at", expiredBefore);
+
+  if (cleanup.error) {
+    throw new Error(`Nonce cleanup failed: ${cleanup.error.message}`);
+  }
+
+  const claim = await supabase
+    .from("getviral_delivery_nonces")
+    .insert({ key_id: key, nonce });
+
+  if (claim.error?.code === "23505") {
+    return false;
+  }
+  if (claim.error) {
+    throw new Error(`Nonce claim failed: ${claim.error.message}`);
+  }
+  return true;
+}
+
+async function isGetViralAuthorized(config: GetViralConfig) {
+  const timestamp = String(Math.floor(Date.now() / 1000));
+  const nonce = randomBytes(24).toString("hex");
+  const path = "/api/auto-post-api/status";
+  const signature = getViralSignature(
+    config.secret,
+    "GET",
+    path,
+    config.key,
+    config.site,
+    timestamp,
+    nonce,
+    Buffer.alloc(0)
+  );
+  const response = await fetch(new URL(path, config.platform), {
+    redirect: "error",
+    signal: AbortSignal.timeout(10_000),
+    headers: {
+      "X-GV-Key": config.key,
+      "X-GV-Site": config.site,
+      "X-GV-Timestamp": timestamp,
+      "X-GV-Nonce": nonce,
+      "X-GV-Signature": signature,
+    },
+  });
+
+  if (!response.ok) return false;
+
+  const data = (await response.json()) as {
+    success?: boolean;
+    website?: string;
+    expires_at?: string;
+  };
+  return (
+    data.success === true &&
+    data.website === config.site &&
+    Number.isFinite(new Date(data.expires_at ?? "").getTime()) &&
+    new Date(data.expires_at ?? "").getTime() > Date.now()
+  );
+}
+
+async function handleGetViralRequest(
+  request: Request,
+  supabase: SupabaseClient
+) {
+  const config = getGetViralConfig();
+  if (!config) {
+    return NextResponse.json(
+      { success: false, error: "Receiver is not configured" },
+      { status: 503, headers: { "Cache-Control": "no-store" } }
+    );
+  }
+
+  const requestUrl = new URL(request.url);
+  const contentType = request.headers
+    .get("content-type")
+    ?.split(";")[0]
+    .trim()
+    .toLowerCase();
+  const timestamp = request.headers.get("x-gv-timestamp") ?? "";
+  const nonce = request.headers.get("x-gv-nonce") ?? "";
+  const suppliedSignature = request.headers.get("x-gv-signature") ?? "";
+
+  if (
+    contentType !== "application/json" ||
+    requestUrl.pathname !== config.endpoint.pathname ||
+    requestUrl.search ||
+    request.headers.get("x-gv-key") !== config.key ||
+    request.headers.get("x-gv-site") !== config.site ||
+    !/^\d{10}$/.test(timestamp) ||
+    Math.abs(Date.now() / 1000 - Number(timestamp)) > 60 ||
+    !/^[a-f0-9]{48}$/.test(nonce) ||
+    !/^[a-f0-9]{64}$/.test(suppliedSignature)
+  ) {
+    return NextResponse.json(
+      { success: false },
+      { status: 401, headers: { "Cache-Control": "no-store" } }
+    );
+  }
+
+  let rawBody: Buffer;
+  try {
+    rawBody = await readRawBody(request);
+  } catch (error) {
+    if (error instanceof RequestTooLargeError) {
+      return NextResponse.json(
+        { success: false, error: "Request body is too large" },
+        { status: 413, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+    throw error;
+  }
+
+  const expectedSignature = getViralSignature(
+    config.secret,
+    "POST",
+    config.endpoint.href,
+    config.key,
+    config.site,
+    timestamp,
+    nonce,
+    rawBody
+  );
+  if (
+    !timingSafeEqual(
+      Buffer.from(suppliedSignature, "hex"),
+      Buffer.from(expectedSignature, "hex")
+    )
+  ) {
+    return NextResponse.json(
+      { success: false },
+      { status: 401, headers: { "Cache-Control": "no-store" } }
+    );
+  }
+
+  let payload: Record<string, unknown>;
+  try {
+    const parsed: unknown = JSON.parse(rawBody.toString("utf8"));
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      throw new Error("Expected a JSON object");
+    }
+    payload = parsed as Record<string, unknown>;
+  } catch {
+    return NextResponse.json(
+      { success: false, error: "Request body must be a JSON object" },
+      { status: 400, headers: { "Cache-Control": "no-store" } }
+    );
+  }
+
+  const validUntil = new Date(String(payload.expires_at ?? "")).getTime();
+  if (
+    payload.website !== config.site ||
+    !Number.isFinite(validUntil) ||
+    validUntil <= Date.now()
+  ) {
+    return NextResponse.json(
+      { success: false },
+      { status: 403, headers: { "Cache-Control": "no-store" } }
+    );
+  }
+
+  if (!(await claimGetViralNonce(supabase, config.key, nonce))) {
+    return NextResponse.json(
+      { success: false },
+      { status: 401, headers: { "Cache-Control": "no-store" } }
+    );
+  }
+
+  if (
+    payload.event === "connection.verify" &&
+    typeof payload.challenge === "string" &&
+    /^[a-f0-9]{64}$/.test(payload.challenge)
+  ) {
+    const proof = createHmac("sha256", config.secret)
+      .update(
+        ["GV1-VERIFY", payload.challenge, config.site, config.endpoint.href].join(
+          "\n"
+        )
+      )
+      .digest("hex");
+    return NextResponse.json(
+      { success: true, challenge: payload.challenge, proof },
+      { headers: { "Cache-Control": "no-store" } }
+    );
+  }
+
+  const article =
+    payload.article &&
+    typeof payload.article === "object" &&
+    !Array.isArray(payload.article)
+      ? (payload.article as Record<string, unknown>)
+      : null;
+
+  if (payload.event !== "article.publish" || !article) {
+    return NextResponse.json(
+      { success: false, error: "Invalid article payload" },
+      { status: 400, headers: { "Cache-Control": "no-store" } }
+    );
+  }
+
+  const publishId =
+    typeof article.publish_id === "string" ? article.publish_id.trim() : "";
+  const title = typeof article.title === "string" ? article.title.trim() : "";
+  const content = typeof article.content === "string" ? article.content : "";
+
+  if (!publishId || publishId.length > 256 || !title || !content.trim()) {
+    return NextResponse.json(
+      { success: false, error: "Invalid article payload" },
+      { status: 400, headers: { "Cache-Control": "no-store" } }
+    );
+  }
+
+  try {
+    if (!(await isGetViralAuthorized(config)) || validUntil <= Date.now()) {
+      return NextResponse.json(
+        { success: false },
+        { status: 403, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
+    const externalId = `getviral:${publishId}`;
+    const articlePayload = {
+      title,
+      content,
+      image_url: article.image_url,
+      category: article.category,
+      external_id: externalId,
+    };
+    const slug = `gv-${createHash("sha256")
+      .update(publishId)
+      .digest("hex")}`;
+    const stored = await saveArticle(
+      articlePayload,
+      article,
+      supabase,
+      slug
+    );
+
+    return NextResponse.json(
+      { success: true, post_id: stored.id, publish_id: publishId },
+      { headers: { "Cache-Control": "no-store" } }
+    );
+  } catch (error) {
+    console.error(
+      "GetViral delivery failed:",
+      error instanceof Error ? error.message : "Unknown receiver error"
+    );
+    return NextResponse.json(
+      { success: false },
+      { status: 503, headers: { "Cache-Control": "no-store" } }
+    );
+  }
+}
+
 export async function POST(request: Request) {
-  if (!isAuthorized(request)) {
+  const isGetViralRequest = [
+    "x-gv-key",
+    "x-gv-site",
+    "x-gv-timestamp",
+    "x-gv-nonce",
+    "x-gv-signature",
+  ].some((name) => request.headers.has(name));
+
+  if (!isGetViralRequest && !isAuthorized(request)) {
     return NextResponse.json(
       {
         ok: false,
@@ -337,6 +714,32 @@ export async function POST(request: Request) {
       },
       { status: 500 }
     );
+  }
+
+  const supabase = createClient(
+    supabaseUrl,
+    serviceRoleKey,
+    {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    }
+  );
+
+  if (isGetViralRequest) {
+    try {
+      return await handleGetViralRequest(request, supabase);
+    } catch (error) {
+      console.error(
+        "GetViral receiver failed:",
+        error instanceof Error ? error.message : "Unknown receiver error"
+      );
+      return NextResponse.json(
+        { success: false },
+        { status: 503, headers: { "Cache-Control": "no-store" } }
+      );
+    }
   }
 
   let body: unknown;
@@ -369,17 +772,6 @@ export async function POST(request: Request) {
     : null;
 
   const items = batch ?? [body];
-
-  const supabase = createClient(
-    supabaseUrl,
-    serviceRoleKey,
-    {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
-    }
-  );
 
   const stored: Array<{
     id: string;
