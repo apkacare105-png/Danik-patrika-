@@ -5,7 +5,7 @@ import { mapArticle } from './data';
 import {
   MOCK_ADS, MOCK_AUTHOR_ARTICLES, MOCK_CATEGORIES, MOCK_PENDING, MOCK_PORTFOLIO, MOCK_PROFILES, MOCK_SETTINGS,
 } from './mock-data';
-import type { AdSlot, Article, Category, PortfolioProject, Profile, Role, SiteSettings } from './types';
+import type { AdSlot, Article, Category, EpaperEdition, PortfolioProject, Profile, Role, SiteSettings } from './types';
 
 
 /** वर्तमान यूज़र और भूमिका। डेमो मोड में 'super_admin' माना जाता है। */
@@ -66,4 +66,11 @@ export async function getAdminPortfolio(): Promise<PortfolioProject[]> {
   if (!hasSupabase()) return MOCK_PORTFOLIO;
   const { data } = await createClient().from('portfolio_projects').select('*').order('order_index');
   return (data as PortfolioProject[]) ?? [];
+}
+
+export async function getAdminEpaperEditions(): Promise<EpaperEdition[]> {
+  if (!hasSupabase()) return [];
+  const { data, error } = await createClient().from('epaper_editions').select('*').order('published_on', { ascending: false });
+  if (error) throw new Error(`ई-पेपर सूची लोड नहीं हो सकी: ${error.message}`);
+  return data as EpaperEdition[];
 }

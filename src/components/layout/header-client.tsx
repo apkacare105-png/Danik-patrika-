@@ -102,6 +102,7 @@ export function HeaderClient({
         <nav className="mx-auto hidden max-w-7xl items-center overflow-x-auto px-3 scrollbar-hide lg:flex" aria-label="मुख्य नेविगेशन">
           <Link href="/blogs" className="whitespace-nowrap px-3 py-3 text-sm font-bold hover:bg-brand">ब्लॉग</Link>
           <Link href="/" className="whitespace-nowrap px-3 py-3 text-sm font-bold hover:bg-brand" onMouseEnter={() => setOpen(null)}>होम</Link>
+          <Link href="/epaper" className="whitespace-nowrap px-3 py-3 text-sm font-bold hover:bg-brand" onMouseEnter={() => setOpen(null)}>ई-पेपर</Link>
           {categories.map((c) => (
             <Link
               key={c.id}
@@ -115,6 +116,7 @@ export function HeaderClient({
               {(c.sub_categories.length > 0 || (menuStories[c.slug]?.length ?? 0) > 0) && <ChevronDown className="h-3.5 w-3.5 opacity-70" />}
             </Link>
           ))}
+          <Link href="/weather" className="whitespace-nowrap px-3 py-3 text-sm font-bold hover:bg-brand" onMouseEnter={() => setOpen(null)}>मौसम</Link>
         </nav>
 
         <AnimatePresence>
@@ -163,7 +165,9 @@ export function HeaderClient({
         <SheetContent side="left" className="overflow-y-auto">
           <SheetTitle>{siteName}</SheetTitle>
           <nav className="flex flex-col" aria-label="मोबाइल नेविगेशन">
-            <SheetClose asChild><Link href="/" className="border-b py-3 font-semibold">होम</Link></SheetClose><SheetClose asChild><Link href="/blogs" className="border-b py-3 font-semibold">कम्युनिटी ब्लॉग</Link></SheetClose>
+            <SheetClose asChild><Link href="/" className="border-b py-3 font-semibold">होम</Link></SheetClose>
+            <SheetClose asChild><Link href="/epaper" className="border-b py-3 font-semibold">ई-पेपर</Link></SheetClose>
+            <SheetClose asChild><Link href="/blogs" className="border-b py-3 font-semibold">कम्युनिटी ब्लॉग</Link></SheetClose>
             {categories.map((c) => (
               <div key={c.id} className="border-b py-2">
                 <SheetClose asChild><Link href={`/category/${c.slug}`} className="block py-1 font-semibold">{c.name_hi}</Link></SheetClose>
@@ -178,6 +182,7 @@ export function HeaderClient({
                 )}
               </div>
             ))}
+            <SheetClose asChild><Link href="/weather" className="border-b py-3 font-semibold">मौसम</Link></SheetClose>
             {extraNav.map((n) => (
               <SheetClose asChild key={n.label}><Link href={n.href} className="border-b py-3">{n.label}</Link></SheetClose>
             ))}

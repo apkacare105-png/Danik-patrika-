@@ -89,6 +89,15 @@ export type PortfolioProject = {
   order_index?: number;
 };
 
+export type EpaperEdition = {
+  id: string;
+  title: string;
+  issue_number: string;
+  published_on: string;
+  pdf_path: string;
+  created_at: string;
+};
+
 export type NavLink = { label: string; href: string };
 
 export type SiteSettings = {

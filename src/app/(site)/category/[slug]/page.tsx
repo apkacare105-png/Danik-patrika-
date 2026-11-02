@@ -3,7 +3,9 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getArticles, getCategories, getTrending, toCard } from '@/lib/data';
 import { ArticleCard } from '@/components/home/article-card';
+import { LiveCricketScores } from '@/components/home/live-cricket-scores';
 import { Sidebar } from '@/components/home/sidebar';
+import { getLiveCricketScores } from '@/lib/cricket-scores';
 
 export const revalidate = 60;
 
@@ -20,9 +22,12 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   if (!cat) notFound();
   const sub = cat.sub_categories.find((s) => s.slug === searchParams.sub);
 
-  const [articles, trending] = await Promise.all([
+  const [articles, trending, cricketScores] = await Promise.all([
     getArticles({ categorySlug: cat.slug, subCategoryId: sub?.id, limit: 30 }),
     getTrending(5),
+    cat.slug === 'khel' && sub?.slug === 'cricket'
+      ? getLiveCricketScores()
+      : Promise.resolve(null),
   ]);
 
   return (
@@ -32,6 +37,8 @@ export default async function CategoryPage({ params, searchParams }: Props) {
           <span className="h-8 w-1.5 rounded bg-brand" />
           <h1 className="text-3xl font-bold">{cat.name_hi}{sub ? ` · ${sub.name_hi}` : ''}</h1>
         </div>
+
+        {cricketScores && <LiveCricketScores initial={cricketScores} />}
 
         {cat.sub_categories.length > 0 && (
           <div className="mb-5 flex flex-wrap gap-2">

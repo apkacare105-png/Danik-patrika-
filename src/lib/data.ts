@@ -3,7 +3,7 @@ import { hasSupabase, createPublicClient } from './supabase/server';
 import {
   MOCK_ADS, MOCK_ARTICLES, MOCK_CATEGORIES, MOCK_PORTFOLIO, MOCK_SETTINGS, MOCK_STORIES,
 } from './mock-data';
-import type { AdSlot, AdSlotType, Article, Category, PortfolioProject, SiteSettings, Story } from './types';
+import type { AdSlot, AdSlotType, Article, Category, EpaperEdition, PortfolioProject, SiteSettings, Story } from './types';
 
 
 const ARTICLE_SELECT = '*, category:categories(slug,name_hi)';
@@ -126,6 +126,13 @@ export async function getPortfolio(): Promise<PortfolioProject[]> {
   if (!hasSupabase()) return MOCK_PORTFOLIO;
   const { data } = await createPublicClient().from('portfolio_projects').select('*').order('order_index');
   return (data as PortfolioProject[]) ?? [];
+}
+
+export async function getEpaperEditions(): Promise<EpaperEdition[]> {
+  if (!hasSupabase()) return [];
+  const { data, error } = await createPublicClient().from('epaper_editions').select('*').order('published_on', { ascending: false });
+  if (error) throw new Error(`ई-पेपर सूची लोड नहीं हो सकी: ${error.message}`);
+  return data as EpaperEdition[];
 }
 
 export async function getStories(): Promise<Story[]> {

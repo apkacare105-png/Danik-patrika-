@@ -2,11 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { FolderKanban, Gauge, LayoutList, Megaphone, Settings, ShieldCheck, Users } from 'lucide-react';
+import { FilePlus2, FolderKanban, Gauge, LayoutList, Megaphone, Newspaper, Settings, ShieldCheck, Users } from 'lucide-react';
 
 const ITEMS = [
   { href: '/admin', label: 'अवलोकन', icon: Gauge },
+  { href: '/dashboard', label: 'नई ख़बर लिखें', icon: FilePlus2 },
   { href: '/admin/approvals', label: 'अप्रूवल क्यू', icon: ShieldCheck },
+  { href: '/admin/epaper', label: 'ई-पेपर प्रबंधन', icon: Newspaper },
   { href: '/admin/users', label: 'यूज़र और भूमिकाएँ', icon: Users },
   { href: '/admin/categories', label: 'श्रेणी प्रबंधक', icon: LayoutList },
   { href: '/admin/ads', label: 'विज्ञापन केंद्र', icon: Megaphone },
