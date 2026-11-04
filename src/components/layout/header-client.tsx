@@ -49,7 +49,8 @@ export function HeaderClient({
         <div className="mx-auto flex max-w-7xl items-center justify-between px-3 py-1.5">
           <div className="flex items-center gap-3" suppressHydrationWarning>
             <span>{now ? dateFmt.format(now) : ' '}</span>
-            <span className="hidden font-semibold tabular-nums text-brand sm:inline">{now ? timeFmt.format(now) : ''}</span>
+            <span className="hidden font-semibold tabular-nums sm:inline">{now ? timeFmt.format(now) : ''}</span>
+            <Link href="/weather" className="hidden font-semibold hover:text-brand sm:inline">मौसम</Link>
             <span className="hidden items-center gap-1 font-semibold text-brand sm:inline-flex" title="Over 1 million article views">
               <Eye className="h-3.5 w-3.5" aria-hidden="true" />
               1 million+ views
@@ -116,7 +117,6 @@ export function HeaderClient({
               {(c.sub_categories.length > 0 || (menuStories[c.slug]?.length ?? 0) > 0) && <ChevronDown className="h-3.5 w-3.5 opacity-70" />}
             </Link>
           ))}
-          <Link href="/weather" className="whitespace-nowrap px-3 py-3 text-sm font-bold hover:bg-brand" onMouseEnter={() => setOpen(null)}>मौसम</Link>
         </nav>
 
         <AnimatePresence>
@@ -141,6 +141,18 @@ export function HeaderClient({
                         </Link>
                       </li>
                     ))}
+                    {active.slug === 'education' && (
+                      <li>
+                        <a
+                          href="https://whatsapp.com/channel/0029Vb8F06Y5EjxqtJvJDB1E"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block rounded px-2 py-1.5 text-sm hover:bg-neutral-100 hover:text-brand"
+                        >
+                          समसामयिक घटनाएँ
+                        </a>
+                      </li>
+                    )}
                   </ul>
                 </div>
                 <div className="grid grid-cols-3 gap-4">
@@ -179,6 +191,18 @@ export function HeaderClient({
                       </SheetClose>
                     ))}
                   </div>
+                )}
+                {c.slug === 'education' && (
+                  <SheetClose asChild>
+                    <a
+                      href="https://whatsapp.com/channel/0029Vb8F06Y5EjxqtJvJDB1E"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-block rounded-full bg-neutral-100 px-3 py-1 text-xs"
+                    >
+                      समसामयिक घटनाएँ
+                    </a>
+                  </SheetClose>
                 )}
               </div>
             ))}

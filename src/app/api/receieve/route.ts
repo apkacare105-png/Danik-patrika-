@@ -479,7 +479,14 @@ async function isGetViralAuthorized(config: GetViralConfig) {
     },
   });
 
-  if (!response.ok) return false;
+  if (!response.ok) {
+    console.warn(
+      "GetViral status authorization rejected:",
+      response.status,
+      response.statusText
+    );
+    return false;
+  }
 
   const data = (await response.json()) as {
     success?: boolean;

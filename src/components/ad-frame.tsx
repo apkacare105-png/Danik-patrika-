@@ -17,7 +17,7 @@ export function AdFrame({ html, publisherId, className = '' }: { html: string; p
 
   return (
     <div className={`relative flex w-full items-center justify-center overflow-hidden rounded-md border border-dashed border-neutral-300 bg-neutral-50 ${className}`} aria-label="विज्ञापन">
-      <span className="absolute left-2 top-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-400">विज्ञापन</span>
+      {live && <span className="absolute left-2 top-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-400">विज्ञापन</span>}
       {live ? (
         <>
           {publisherId && (
@@ -27,7 +27,12 @@ export function AdFrame({ html, publisherId, className = '' }: { html: string; p
           <div className="w-full" dangerouslySetInnerHTML={{ __html: html }} />
         </>
       ) : (
-        <span className="text-sm text-neutral-400">विज्ञापन स्थान</span>
+        <div
+          role="img"
+          aria-label="विज्ञापन"
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{ backgroundImage: "url('/advertisement.png')" }}
+        />
       )}
     </div>
   );
