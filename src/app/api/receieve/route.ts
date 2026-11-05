@@ -453,52 +453,50 @@ async function claimGetViralNonce(
   return true;
 }
 
-async function isGetViralAuthorized(config: GetViralConfig) {
+// GV_AUTH_DIAGNOSTICS_V1: preserve fail-closed authorization; report safe reasons.
+type GetViralAuthResult = { authorized: boolean; reason: string; status?: number };
+async function isGetViralAuthorized(config: GetViralConfig): Promise<GetViralAuthResult> {
   const timestamp = String(Math.floor(Date.now() / 1000));
   const nonce = randomBytes(24).toString("hex");
   const path = "/api/auto-post-api/status";
   const signature = getViralSignature(
-    config.secret,
-    "GET",
-    path,
-    config.key,
-    config.site,
-    timestamp,
-    nonce,
-    Buffer.alloc(0)
+    config.secret, "GET", path, config.key, config.site,
+    timestamp, nonce, Buffer.alloc(0)
   );
-  const response = await fetch(new URL(path, config.platform), {
-    redirect: "error",
-    signal: AbortSignal.timeout(10_000),
-    headers: {
-      "X-GV-Key": config.key,
-      "X-GV-Site": config.site,
-      "X-GV-Timestamp": timestamp,
-      "X-GV-Nonce": nonce,
-      "X-GV-Signature": signature,
-    },
-  });
-
-  if (!response.ok) {
-    console.warn(
-      "GetViral status authorization rejected:",
-      response.status,
-      response.statusText
-    );
-    return false;
+  let response: Response;
+  try {
+    response = await fetch(new URL(path, config.platform), {
+      redirect: "error",
+      cache: "no-store",
+      signal: AbortSignal.timeout(10_000),
+      headers: {
+        "X-GV-Key": config.key,
+        "X-GV-Site": config.site,
+        "X-GV-Timestamp": timestamp,
+        "X-GV-Nonce": nonce,
+        "X-GV-Signature": signature,
+      },
+    });
+  } catch (error) {
+    console.error("GetViral status callback network failure:", error instanceof Error ? error.message : "unknown");
+    return { authorized: false, reason: "status_callback_network_failure" };
   }
-
-  const data = (await response.json()) as {
-    success?: boolean;
-    website?: string;
-    expires_at?: string;
-  };
-  return (
-    data.success === true &&
-    data.website === config.site &&
-    Number.isFinite(new Date(data.expires_at ?? "").getTime()) &&
-    new Date(data.expires_at ?? "").getTime() > Date.now()
-  );
+  if (!response.ok) {
+    console.warn("GetViral status callback denied:", response.status);
+    return { authorized: false, reason: "status_callback_http_" + response.status, status: response.status };
+  }
+  let data: { success?: boolean; website?: string; expires_at?: string };
+  try {
+    data = await response.json();
+  } catch {
+    return { authorized: false, reason: "status_callback_invalid_json" };
+  }
+  if (data.success !== true) return { authorized: false, reason: "status_callback_not_successful" };
+  if (data.website !== config.site) return { authorized: false, reason: "status_callback_site_mismatch" };
+  const expiry = new Date(data.expires_at ?? "").getTime();
+  if (!Number.isFinite(expiry)) return { authorized: false, reason: "status_callback_invalid_expiry" };
+  if (expiry <= Date.now()) return { authorized: false, reason: "status_callback_expired" };
+  return { authorized: true, reason: "authorized" };
 }
 
 async function handleGetViralRequest(
@@ -595,8 +593,10 @@ async function handleGetViralRequest(
     !Number.isFinite(validUntil) ||
     validUntil <= Date.now()
   ) {
+    const reason = payload.website !== config.site ? "delivery_site_mismatch" : "delivery_expired_or_invalid";
+    console.warn("GetViral delivery rejected:", reason);
     return NextResponse.json(
-      { success: false },
+      { success: false, message: "GetViral delivery rejected: " + reason },
       { status: 403, headers: { "Cache-Control": "no-store" } }
     );
   }
@@ -653,9 +653,12 @@ async function handleGetViralRequest(
   }
 
   try {
-    if (!(await isGetViralAuthorized(config)) || validUntil <= Date.now()) {
+    const authorization = await isGetViralAuthorized(config);
+    if (!authorization.authorized || validUntil <= Date.now()) {
+      const reason = validUntil <= Date.now() ? "delivery_expired" : authorization.reason;
+      console.warn("GetViral publish authorization denied:", reason);
       return NextResponse.json(
-        { success: false },
+        { success: false, message: "GetViral publish authorization denied: " + reason },
         { status: 403, headers: { "Cache-Control": "no-store" } }
       );
     }

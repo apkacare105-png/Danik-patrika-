@@ -76,6 +76,7 @@ export type AdSlot = {
   ad_code: string;
   is_enabled: boolean;
   publisher_id: string | null;
+  click_url: string | null;
 };
 
 export type PortfolioProject = {

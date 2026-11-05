@@ -46,11 +46,20 @@ export async function saveCategoryOrder(items: { id: string; order_index: number
   }, ['/', '/admin/categories']);
 }
 
-export async function saveAdSlot(slot: Pick<AdSlot, 'id' | 'ad_code' | 'is_enabled' | 'publisher_id'>) {
+export async function saveAdSlot(slot: Pick<AdSlot, 'id' | 'ad_code' | 'is_enabled' | 'publisher_id' | 'click_url'>) {
   const pub = slot.publisher_id?.trim() ?? '';
   if (pub && !/^ca-pub-\d{16}$/.test(pub)) return { ok: false, message: 'पब्लिशर ID का फ़ॉर्मैट ca-pub-XXXXXXXXXXXXXXXX (16 अंक) होना चाहिए।' };
+  const clickUrl = slot.click_url?.trim() ?? '';
+  if (clickUrl) {
+    try {
+      const url = new URL(clickUrl);
+      if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new Error();
+    } catch {
+      return { ok: false, message: 'क्लिक लिंक में मान्य http:// या https:// URL डालें।' };
+    }
+  }
   return run('विज्ञापन स्लॉट सहेजा गया।', 'विज्ञापन स्लॉट सहेजा गया।',
-    (sb) => sb.from('ad_settings').update({ ad_code: slot.ad_code, is_enabled: slot.is_enabled, publisher_id: pub }).eq('id', slot.id), ['/', '/admin/ads']);
+    (sb) => sb.from('ad_settings').update({ ad_code: slot.ad_code, is_enabled: slot.is_enabled, publisher_id: pub, click_url: clickUrl || null }).eq('id', slot.id), ['/', '/admin/ads']);
 }
 
 export async function saveSiteSettings(s: SiteSettings) {
@@ -73,4 +82,3 @@ export async function deletePortfolioProject(id: string) {
   return run('प्रोजेक्ट हटाया गया।', 'प्रोजेक्ट हटाया गया।',
     (sb) => sb.from('portfolio_projects').delete().eq('id', id), ['/hamare-karya', '/admin/portfolio']);
 }
-

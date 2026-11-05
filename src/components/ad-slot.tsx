@@ -17,6 +17,7 @@ export async function AdSlot({ placement, className = '' }: { placement: AdSlotT
     <AdFrame
       html={slot.ad_code}
       publisherId={slot.publisher_id}
+      clickUrl={slot.click_url}
       className={`${SIZE[placement]} ${className}`}
     />
   );

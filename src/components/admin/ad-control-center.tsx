@@ -17,10 +17,18 @@ function SlotCard({ slot, readOnly, onSaved }: { slot: AdSlot; readOnly: boolean
   const [showPreview, setShowPreview] = useState(false);
   const [pending, start] = useTransition();
   const pubOk = !s.publisher_id || PUB_RE.test(s.publisher_id);
+  const clickUrlOk = !s.click_url?.trim() || (() => {
+    try {
+      const url = new URL(s.click_url);
+      return url.protocol === 'http:' || url.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  })();
   const changed = JSON.stringify(s) !== JSON.stringify(slot);
 
   const save = () => start(async () => {
-    const r = await saveAdSlot({ id: s.id, ad_code: s.ad_code, is_enabled: s.is_enabled, publisher_id: s.publisher_id });
+    const r = await saveAdSlot({ id: s.id, ad_code: s.ad_code, is_enabled: s.is_enabled, publisher_id: s.publisher_id, click_url: s.click_url });
     if (r.ok) { toast.success(`${AD_SLOT_LABEL[s.slot_type]}: ${r.message}`); onSaved(s); } else toast.error(r.message);
   });
 
@@ -49,6 +57,12 @@ function SlotCard({ slot, readOnly, onSaved }: { slot: AdSlot; readOnly: boolean
           {!pubOk && <p className="mt-1 text-xs text-red-600">फ़ॉर्मैट: ca-pub- के बाद 16 अंक।</p>}
         </div>
         <div>
+          <Label htmlFor={`click-url-${s.id}`}>बैनर क्लिक लिंक (वैकल्पिक)</Label>
+          <Input id={`click-url-${s.id}`} type="url" value={s.click_url ?? ''} disabled={readOnly} placeholder="https://example.com" onChange={(e) => setS({ ...s, click_url: e.target.value })} aria-invalid={!clickUrlOk} className={clickUrlOk ? '' : 'border-red-500'} />
+          {!clickUrlOk && <p className="mt-1 text-xs text-red-600">मान्य http:// या https:// लिंक डालें।</p>}
+          <p className="mt-1 text-xs text-neutral-500">यह लिंक बैनर इमेज पर लागू होगा; AdSense विज्ञापन अपना लिंक इस्तेमाल करते हैं।</p>
+        </div>
+        <div>
           <Label htmlFor={`code-${s.id}`}>विज्ञापन कोड</Label>
           <Textarea id={`code-${s.id}`} rows={4} value={s.ad_code} disabled={readOnly} onChange={(e) => setS({ ...s, ad_code: e.target.value })} placeholder={'<ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-…" data-ad-slot="…"></ins>'} className="font-mono text-xs" />
         </div>
@@ -56,7 +70,7 @@ function SlotCard({ slot, readOnly, onSaved }: { slot: AdSlot; readOnly: boolean
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
         <Button variant="outline" size="sm" onClick={() => setShowPreview((v) => !v)}><Eye className="h-4 w-4" /> {showPreview ? 'प्रीव्यू छिपाएँ' : 'कोड प्रीव्यू'}</Button>
-        {!readOnly && <Button size="sm" onClick={save} disabled={!changed || !pubOk || pending}><Save className="h-4 w-4" /> {pending ? 'सहेजा जा रहा है…' : 'सहेजें'}</Button>}
+        {!readOnly && <Button size="sm" onClick={save} disabled={!changed || !pubOk || !clickUrlOk || pending}><Save className="h-4 w-4" /> {pending ? 'सहेजा जा रहा है…' : 'सहेजें'}</Button>}
       </div>
       {showPreview && (
         <iframe title={`${s.slot_key} प्रीव्यू`} sandbox="" srcDoc={srcDoc} className="mt-3 h-28 w-full rounded-lg border" />
