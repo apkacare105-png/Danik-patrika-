@@ -24,7 +24,7 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;
-  if (!user && (path.startsWith('/dashboard') || path.startsWith('/admin'))) {
+  if (!user && (path.startsWith('/dashboard') || path.startsWith('/admin') || path.startsWith('/account'))) {
     const login = request.nextUrl.clone();
     login.pathname = '/login';
     login.searchParams.set('next', path);

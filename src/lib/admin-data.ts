@@ -5,7 +5,7 @@ import { mapArticle } from './data';
 import {
   MOCK_ADS, MOCK_AUTHOR_ARTICLES, MOCK_CATEGORIES, MOCK_PENDING, MOCK_PORTFOLIO, MOCK_PROFILES, MOCK_SETTINGS,
 } from './mock-data';
-import type { AdSlot, Article, Category, EpaperEdition, PortfolioProject, Profile, Role, SiteSettings } from './types';
+import type { AdSlot, Article, Category, EpaperEdition, Feedback, PortfolioProject, Profile, Role, SiteSettings } from './types';
 
 
 /** वर्तमान यूज़र और भूमिका। डेमो मोड में 'super_admin' माना जाता है। */
@@ -73,4 +73,15 @@ export async function getAdminEpaperEditions(): Promise<EpaperEdition[]> {
   const { data, error } = await createClient().from('epaper_editions').select('*').order('published_on', { ascending: false });
   if (error) throw new Error(`ई-पेपर सूची लोड नहीं हो सकी: ${error.message}`);
   return data as EpaperEdition[];
+}
+
+export async function getAllFeedback(): Promise<Feedback[]> {
+  if (!hasSupabase()) return [];
+  const { data } = await createClient().from('user_feedback')
+    .select('*, user:profiles(display_name,email)').order('created_at', { ascending: false }).limit(300);
+  return (data ?? []).map((r: any) => ({
+    id: r.id, user_id: r.user_id, category: r.category, rating: r.rating, message: r.message,
+    status: r.status, created_at: r.created_at,
+    user_name: r.user?.display_name || 'यूज़र', user_email: r.user?.email || '',
+  }));
 }

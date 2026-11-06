@@ -29,7 +29,7 @@ export function AdFrame({ html, publisherId, clickUrl, className = '' }: { html:
 
   return (
     <div className={`relative flex w-full items-center justify-center overflow-hidden rounded-md border border-dashed border-neutral-300 bg-neutral-50 ${className}`} aria-label="विज्ञापन">
-      {live && <span className="absolute left-2 top-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-400">विज्ञापन</span>}
+      <span className="pointer-events-none absolute right-1 top-1 z-10 rounded bg-white/90 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-neutral-600 shadow-sm">विज्ञापन</span>
       {clickUrl && !live ? (
         <a href={clickUrl} target="_blank" rel="noopener noreferrer" aria-label="विज्ञापन खोलें (नई टैब)" className="flex w-full items-center justify-center">
           {content}

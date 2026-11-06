@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronDown, Eye, Menu, Search, UserRound } from 'lucide-react';
 import type { Category, NavLink } from '@/lib/types';
 import { Sheet, SheetClose, SheetContent, SheetTitle } from '@/components/ui/sheet';
+import { createClient, hasSupabaseClient } from '@/lib/supabase/client';
 import { SearchModal } from './search-modal';
 
 type MenuStory = { title_hi: string; slug: string; category_slug: string; featured_image: string | null };
@@ -22,6 +23,16 @@ export function HeaderClient({
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [now, setNow] = useState<Date | null>(null);
+  const [loggedIn, setLoggedIn] = useState(false);
+
+  // लॉगिन स्थिति ब्राउज़र में जाँचते हैं ताकि सार्वजनिक पेज कैश होते रहें
+  useEffect(() => {
+    if (!hasSupabaseClient()) return;
+    const auth = createClient().auth;
+    auth.getSession().then(({ data }) => setLoggedIn(Boolean(data.session)));
+    const { data: sub } = auth.onAuthStateChange((_e, session) => setLoggedIn(Boolean(session)));
+    return () => sub.subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     setNow(new Date());
@@ -60,8 +71,8 @@ export function HeaderClient({
             {extraNav.map((n) => (
               <Link key={n.href + n.label} href={n.href} className="hover:text-brand">{n.label}</Link>
             ))}
-            <Link href="/login" className="flex items-center gap-1 font-semibold hover:text-brand">
-              <UserRound className="h-3.5 w-3.5" /> लॉगिन
+            <Link href={loggedIn ? '/account' : '/login'} className="flex items-center gap-1 font-semibold hover:text-brand">
+              <UserRound className="h-3.5 w-3.5" /> {loggedIn ? 'मेरा खाता' : 'लॉगिन'}
             </Link>
           </nav>
         </div>
@@ -207,6 +218,7 @@ export function HeaderClient({
               </div>
             ))}
             <SheetClose asChild><Link href="/weather" className="border-b py-3 font-semibold">मौसम</Link></SheetClose>
+            <SheetClose asChild><Link href={loggedIn ? '/account' : '/login'} className="border-b py-3 font-semibold">{loggedIn ? 'मेरा खाता' : 'लॉगिन'}</Link></SheetClose>
             {extraNav.map((n) => (
               <SheetClose asChild key={n.label}><Link href={n.href} className="border-b py-3">{n.label}</Link></SheetClose>
             ))}

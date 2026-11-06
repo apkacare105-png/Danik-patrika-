@@ -99,8 +99,10 @@ create table if not exists public.ad_settings (
   ad_code      text not null default '',
   is_enabled   boolean not null default false,
   publisher_id text,
+  click_url    text,
   updated_at   timestamptz not null default now(),
-  constraint publisher_id_format check (publisher_id is null or publisher_id = '' or publisher_id ~ '^ca-pub-[0-9]{16}$')
+  constraint publisher_id_format check (publisher_id is null or publisher_id = '' or publisher_id ~ '^ca-pub-[0-9]{16}$'),
+  constraint ad_settings_click_url_format check (click_url is null or click_url = '' or click_url ~* '^https?://[^[:space:]]+$')
 );
 
 create table if not exists public.portfolio_projects (       -- "हमारे कार्य"

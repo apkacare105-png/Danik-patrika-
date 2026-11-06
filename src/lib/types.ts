@@ -122,6 +122,35 @@ export type Profile = {
   created_at: string;
 };
 
+export type FeedbackCategory = 'general' | 'bug' | 'suggestion' | 'content' | 'other';
+export type FeedbackStatus = 'new' | 'reviewed' | 'resolved';
+
+export const FEEDBACK_CATEGORY_LABEL: Record<FeedbackCategory, string> = {
+  general: 'सामान्य',
+  bug: 'समस्या / बग',
+  suggestion: 'सुझाव',
+  content: 'ख़बर / कंटेंट',
+  other: 'अन्य',
+};
+
+export const FEEDBACK_STATUS_LABEL: Record<FeedbackStatus, string> = {
+  new: 'नया',
+  reviewed: 'देखा गया',
+  resolved: 'हल हुआ',
+};
+
+export type Feedback = {
+  id: string;
+  user_id: string;
+  category: FeedbackCategory;
+  rating: number | null;
+  message: string;
+  status: FeedbackStatus;
+  created_at: string;
+  user_name?: string;
+  user_email?: string;
+};
+
 export type Story = {
   id: string;
   title: string;
